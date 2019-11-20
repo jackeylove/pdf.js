@@ -13,18 +13,12 @@
  * limitations under the License.
  */
 /* eslint-disable no-unused-vars */
-/* umdutils ignore */
 
 'use strict';
 
-var pdfjsVersion = PDFJSDev.eval('BUNDLE_VERSION');
-var pdfjsBuild = PDFJSDev.eval('BUNDLE_BUILD');
+const pdfjsVersion = PDFJSDev.eval('BUNDLE_VERSION');
+const pdfjsBuild = PDFJSDev.eval('BUNDLE_BUILD');
 
-var pdfjsCoreWorker = require('./core/worker.js');
-
-if (typeof PDFJSDev === 'undefined' ||
-    !PDFJSDev.test('FIREFOX || MOZCENTRAL')) {
-  require('./core/network.js');
-}
+const pdfjsCoreWorker = require('./core/worker.js');
 
 exports.WorkerMessageHandler = pdfjsCoreWorker.WorkerMessageHandler;

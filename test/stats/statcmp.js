@@ -60,12 +60,12 @@ function flatten(stats) {
         pdf: stat['pdf'],
         round: stat['round'],
         stat: s['name'],
-        time: s['end'] - s['start']
+        time: s['end'] - s['start'],
       });
     });
   });
   // Use only overall results if not grouped by 'stat'
-  if (options.groupBy.indexOf('stat') < 0) {
+  if (!options.groupBy.includes('stat')) {
     rows = rows.filter(function(s) {
       return s.stat === 'Overall';
     });

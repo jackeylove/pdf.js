@@ -12,19 +12,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/* no-babel-preset */
 
-'use strict';
-
-(function (root, factory) {
-  if (typeof define === 'function' && define.amd) {
-    define('pdfjs/core/glyphlist', ['exports', 'pdfjs/shared/util'], factory);
-  } else if (typeof exports !== 'undefined') {
-    factory(exports, require('../shared/util.js'));
-  } else {
-    factory((root.pdfjsCoreGlyphList = {}), root.pdfjsSharedUtil);
-  }
-}(this, function (exports, sharedUtil) {
-var getLookupTableFactory = sharedUtil.getLookupTableFactory;
+var getLookupTableFactory = require('./core_utils').getLookupTableFactory;
 
 var getGlyphsUnicode = getLookupTableFactory(function (t) {
   t['A'] = 0x0041;
@@ -1836,6 +1826,7 @@ var getGlyphsUnicode = getLookupTableFactory(function (t) {
   t['feicoptic'] = 0x03E5;
   t['female'] = 0x2640;
   t['ff'] = 0xFB00;
+  t['f_f'] = 0xFB00; // Fixes issue 11016.
   t['ffi'] = 0xFB03;
   t['ffl'] = 0xFB04;
   t['fi'] = 0xFB01;
@@ -4560,4 +4551,3 @@ var getDingbatsGlyphsUnicode = getLookupTableFactory(function (t) {
 
 exports.getGlyphsUnicode = getGlyphsUnicode;
 exports.getDingbatsGlyphsUnicode = getDingbatsGlyphsUnicode;
-}));

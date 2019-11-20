@@ -13,7 +13,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-/* globals chrome, CSS */
 
 'use strict';
 
@@ -63,6 +62,12 @@ function watchObjectOrEmbed(elem) {
     // Until #4483 is fixed, POST requests should be ignored.
     return;
   }
+  if (elem.tagName === 'EMBED' && elem.src === 'about:blank') {
+    // Starting from Chrome 76, internal embeds do not have the original URL,
+    // but "about:blank" instead.
+    // See https://github.com/mozilla/pdf.js/issues/11137
+    return;
+  }
 
   if (elem.__I_saw_this_element) {
     return;
@@ -104,7 +109,7 @@ function watchObjectOrEmbed(elem) {
     attributes: true,
     childList: false,
     characterData: false,
-    attributeFilter: [srcAttribute]
+    attributeFilter: [srcAttribute],
   });
 }
 

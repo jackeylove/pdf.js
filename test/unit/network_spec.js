@@ -12,35 +12,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-'use strict';
 
-(function (root, factory) {
-  if (typeof define === 'function' && define.amd) {
-    define('pdfjs-test/unit/network_spec', ['exports', 'pdfjs/core/network'],
-           factory);
-  } else if (typeof exports !== 'undefined') {
-    factory(exports, require('../../src/core/network.js'));
-  } else {
-    factory((root.pdfjsTestUnitNetworkSpec = {}), root.pdfjsCoreNetwork);
-  }
-}(this, function (exports, coreNetwork) {
-
-var PDFNetworkStream = coreNetwork.PDFNetworkStream;
+import { AbortException } from '../../src/shared/util';
+import { PDFNetworkStream } from '../../src/display/network';
 
 describe('network', function() {
   var pdf1 = new URL('../pdfs/tracemonkey.pdf', window.location).href;
   var pdf1Length = 1016315;
-  var pdf2 = new URL('../pdfs/pdf.pdf', window.location).href;
-  var pdf2Length = 32472771;
 
   it('read without stream and range', function(done) {
     var stream = new PDFNetworkStream({
-      source: {
-        url: pdf1,
-        rangeChunkSize: 65536,
-        disableStream: true,
-      },
-      disableRange: true
+      url: pdf1,
+      rangeChunkSize: 65536,
+      disableStream: true,
+      disableRange: true,
     });
 
     var fullReader = stream.getFullReader();
@@ -55,7 +40,7 @@ describe('network', function() {
     var read = function () {
       return fullReader.read().then(function (result) {
         if (result.done) {
-          return;
+          return undefined;
         }
         count++;
         len += result.value.byteLength;
@@ -76,72 +61,16 @@ describe('network', function() {
     });
   });
 
-  it('read with streaming', function(done) {
-    var userAgent = window.navigator.userAgent;
-    // The test is valid for FF only: the XHR has support of the
-    // 'moz-chunked-array' response type.
-    // TODO enable for other browsers, e.g. when fetch/streams API is supported.
-    var m = /Mozilla\/5.0.*?rv:(\d+).*? Gecko/.exec(userAgent);
-    if (!m || m[1] < 9) {
-      expect(true).toEqual(true);
-      done();
-      return;
-    }
-
-    var stream = new PDFNetworkStream({
-      source: {
-        url: pdf2,
-        rangeChunkSize: 65536,
-        disableStream: false,
-      },
-      disableRange: false
-    });
-
-    var fullReader = stream.getFullReader();
-
-    var isStreamingSupported, isRangeSupported;
-    var promise = fullReader.headersReady.then(function () {
-      isStreamingSupported = fullReader.isStreamingSupported;
-      isRangeSupported = fullReader.isRangeSupported;
-    });
-
-    var len = 0, count = 0;
-    var read = function () {
-      return fullReader.read().then(function (result) {
-        if (result.done) {
-          return;
-        }
-        count++;
-        len += result.value.byteLength;
-        return read();
-      });
-    };
-
-    var readPromise = Promise.all([read(), promise]);
-
-    readPromise.then(function () {
-      expect(len).toEqual(pdf2Length);
-      expect(count).toBeGreaterThan(1);
-      expect(isStreamingSupported).toEqual(true);
-      expect(isRangeSupported).toEqual(true);
-      done();
-    }).catch(function (reason) {
-      done.fail(reason);
-    });
-  });
-
   it('read custom ranges', function (done) {
     // We don't test on browsers that don't support range request, so
     // requiring this test to pass.
     var rangeSize = 32768;
     var stream = new PDFNetworkStream({
-      source: {
-        url: pdf1,
-        length: pdf1Length,
-        rangeChunkSize: rangeSize,
-        disableStream: true,
-      },
-      disableRange: false
+      url: pdf1,
+      length: pdf1Length,
+      rangeChunkSize: rangeSize,
+      disableStream: true,
+      disableRange: false,
     });
 
     var fullReader = stream.getFullReader();
@@ -151,7 +80,7 @@ describe('network', function() {
       isStreamingSupported = fullReader.isStreamingSupported;
       isRangeSupported = fullReader.isRangeSupported;
       // we shall be able to close the full reader without issues
-      fullReader.cancel('Don\'t need full reader');
+      fullReader.cancel(new AbortException('Don\'t need fullReader.'));
       fullReaderCancelled = true;
     });
 
@@ -162,11 +91,11 @@ describe('network', function() {
                                              pdf1Length - tailSize);
     var range2Reader = stream.getRangeReader(pdf1Length - tailSize, pdf1Length);
 
-    var result1 = {value: 0}, result2 = {value: 0};
+    var result1 = { value: 0, }, result2 = { value: 0, };
     var read = function (reader, lenResult) {
       return reader.read().then(function (result) {
         if (result.done) {
-          return;
+          return undefined;
         }
         lenResult.value += result.value.byteLength;
         return read(reader, lenResult);
@@ -189,4 +118,3 @@ describe('network', function() {
     });
   });
 });
-}));

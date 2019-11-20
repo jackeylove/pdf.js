@@ -13,32 +13,14 @@
  * limitations under the License.
  */
 
-'use strict';
+import {
+  animationStarted, DEFAULT_SCALE, DEFAULT_SCALE_VALUE, MAX_SCALE,
+  MIN_SCALE, noContextMenuHandler, NullL10n
+} from './ui_utils';
 
-(function (root, factory) {
-  if (typeof define === 'function' && define.amd) {
-    define('pdfjs-web/toolbar', ['exports', 'pdfjs-web/ui_utils'],
-      factory);
-  } else if (typeof exports !== 'undefined') {
-    factory(exports, require('./ui_utils.js'));
-  } else {
-    factory((root.pdfjsWebToolbar = {}), root.pdfjsWebUIUtils);
-  }
-}(this, function (exports, uiUtils) {
-
-var mozL10n = uiUtils.mozL10n;
-var noContextMenuHandler = uiUtils.noContextMenuHandler;
-var animationStarted = uiUtils.animationStarted;
-var localized = uiUtils.localized;
-
-var DEFAULT_SCALE_VALUE = uiUtils.DEFAULT_SCALE_VALUE;
-var DEFAULT_SCALE = uiUtils.DEFAULT_SCALE;
-var MIN_SCALE = uiUtils.MIN_SCALE;
-var MAX_SCALE = uiUtils.MAX_SCALE;
-
-var PAGE_NUMBER_LOADING_INDICATOR = 'visiblePageIsLoading';
-var SCALE_SELECT_CONTAINER_PADDING = 8;
-var SCALE_SELECT_PADDING = 22;
+const PAGE_NUMBER_LOADING_INDICATOR = 'visiblePageIsLoading';
+const SCALE_SELECT_CONTAINER_PADDING = 8;
+const SCALE_SELECT_PADDING = 22;
 
 /**
  * @typedef {Object} ToolbarOptions
@@ -64,227 +46,202 @@ var SCALE_SELECT_PADDING = 22;
  *   the page view.
  */
 
-/**
- * @class
- */
-var Toolbar = (function ToolbarClosure() {
+class Toolbar {
   /**
-   * @constructs Toolbar
    * @param {ToolbarOptions} options
-   * @param {HTMLDivElement} mainContainer
    * @param {EventBus} eventBus
+   * @param {IL10n} l10n - Localization service.
    */
-  function Toolbar(options, mainContainer, eventBus) {
+  constructor(options, eventBus, l10n = NullL10n) {
     this.toolbar = options.container;
-    this.mainContainer = mainContainer;
     this.eventBus = eventBus;
-    this.items = options;
+    this.l10n = l10n;
+    this.buttons = [
+      { element: options.previous, eventName: 'previouspage', },
+      { element: options.next, eventName: 'nextpage', },
+      { element: options.zoomIn, eventName: 'zoomin', },
+      { element: options.zoomOut, eventName: 'zoomout', },
+      { element: options.openFile, eventName: 'openfile', },
+      { element: options.print, eventName: 'print', },
+      { element: options.presentationModeButton,
+        eventName: 'presentationmode', },
+      { element: options.download, eventName: 'download', },
+      { element: options.viewBookmark, eventName: null, },
+    ];
+    this.items = {
+      numPages: options.numPages,
+      pageNumber: options.pageNumber,
+      scaleSelectContainer: options.scaleSelectContainer,
+      scaleSelect: options.scaleSelect,
+      customScaleOption: options.customScaleOption,
+      previous: options.previous,
+      next: options.next,
+      zoomIn: options.zoomIn,
+      zoomOut: options.zoomOut,
+    };
 
     this._wasLocalized = false;
     this.reset();
 
-    // Bind the event listeners for click and hand tool actions.
+    // Bind the event listeners for click and various other actions.
     this._bindListeners();
   }
 
-  Toolbar.prototype = {
-    setPageNumber: function (pageNumber, pageLabel) {
-      this.pageNumber = pageNumber;
-      this.pageLabel = pageLabel;
-      this._updateUIState(false);
-    },
+  setPageNumber(pageNumber, pageLabel) {
+    this.pageNumber = pageNumber;
+    this.pageLabel = pageLabel;
+    this._updateUIState(false);
+  }
 
-    setPagesCount: function (pagesCount, hasPageLabels) {
-      this.pagesCount = pagesCount;
-      this.hasPageLabels = hasPageLabels;
-      this._updateUIState(true);
-    },
+  setPagesCount(pagesCount, hasPageLabels) {
+    this.pagesCount = pagesCount;
+    this.hasPageLabels = hasPageLabels;
+    this._updateUIState(true);
+  }
 
-    setPageScale: function (pageScaleValue, pageScale) {
-      this.pageScaleValue = pageScaleValue;
-      this.pageScale = pageScale;
-      this._updateUIState(false);
-    },
+  setPageScale(pageScaleValue, pageScale) {
+    this.pageScaleValue = (pageScaleValue || pageScale).toString();
+    this.pageScale = pageScale;
+    this._updateUIState(false);
+  }
 
-    reset: function () {
-      this.pageNumber = 0;
-      this.pageLabel = null;
-      this.hasPageLabels = false;
-      this.pagesCount = 0;
-      this.pageScaleValue = DEFAULT_SCALE_VALUE;
-      this.pageScale = DEFAULT_SCALE;
-      this._updateUIState(true);
-    },
+  reset() {
+    this.pageNumber = 0;
+    this.pageLabel = null;
+    this.hasPageLabels = false;
+    this.pagesCount = 0;
+    this.pageScaleValue = DEFAULT_SCALE_VALUE;
+    this.pageScale = DEFAULT_SCALE;
+    this._updateUIState(true);
+    this.updateLoadingIndicatorState();
+  }
 
-    _bindListeners: function Toolbar_bindClickListeners() {
-      var eventBus = this.eventBus;
-      var self = this;
-      var items = this.items;
+  _bindListeners() {
+    const { pageNumber, scaleSelect, } = this.items;
+    const self = this;
 
-      items.previous.addEventListener('click', function() {
-        eventBus.dispatch('previouspage');
-      });
-
-      items.next.addEventListener('click', function() {
-        eventBus.dispatch('nextpage');
-      });
-
-      items.zoomIn.addEventListener('click', function() {
-        eventBus.dispatch('zoomin');
-      });
-
-      items.zoomOut.addEventListener('click', function() {
-        eventBus.dispatch('zoomout');
-      });
-
-      items.pageNumber.addEventListener('click', function() {
-        this.select();
-      });
-
-      items.pageNumber.addEventListener('change', function() {
-        eventBus.dispatch('pagenumberchanged', {
-          source: self,
-          value: this.value
-        });
-      });
-
-      items.scaleSelect.addEventListener('change', function() {
-        if (this.value === 'custom') {
-          return;
+    // The buttons within the toolbar.
+    for (const { element, eventName, } of this.buttons) {
+      element.addEventListener('click', (evt) => {
+        if (eventName !== null) {
+          this.eventBus.dispatch(eventName, { source: this, });
         }
-        eventBus.dispatch('scalechanged', {
-          source: self,
-          value: this.value
-        });
       });
-
-      items.presentationModeButton.addEventListener('click',
-          function (e) {
-        eventBus.dispatch('presentationmode');
+    }
+    // The non-button elements within the toolbar.
+    pageNumber.addEventListener('click', function() {
+      this.select();
+    });
+    pageNumber.addEventListener('change', function() {
+      self.eventBus.dispatch('pagenumberchanged', {
+        source: self,
+        value: this.value,
       });
+    });
 
-      items.openFile.addEventListener('click', function (e) {
-        eventBus.dispatch('openfile');
+    scaleSelect.addEventListener('change', function() {
+      if (this.value === 'custom') {
+        return;
+      }
+      self.eventBus.dispatch('scalechanged', {
+        source: self,
+        value: this.value,
       });
+    });
+    // Suppress context menus for some controls.
+    scaleSelect.oncontextmenu = noContextMenuHandler;
 
-      items.print.addEventListener('click', function (e) {
-        eventBus.dispatch('print');
-      });
-
-      items.download.addEventListener('click', function (e) {
-        eventBus.dispatch('download');
-      });
-
-      // Suppress context menus for some controls
-      items.scaleSelect.oncontextmenu = noContextMenuHandler;
-
-      localized.then(this._localized.bind(this));
-    },
-
-    _localized: function Toolbar_localized() {
+    this.eventBus.on('localized', () => {
       this._wasLocalized = true;
       this._adjustScaleWidth();
       this._updateUIState(true);
-    },
+    });
+  }
 
-    _updateUIState: function Toolbar_updateUIState(resetNumPages) {
-      function selectScaleOption(value, scale) {
-        var options = items.scaleSelect.options;
-        var predefinedValueFound = false;
-        for (var i = 0, ii = options.length; i < ii; i++) {
-          var option = options[i];
-          if (option.value !== value) {
-            option.selected = false;
-            continue;
-          }
-          option.selected = true;
-          predefinedValueFound = true;
-        }
-        if (!predefinedValueFound) {
-          var customScale = Math.round(scale * 10000) / 100;
-          items.customScaleOption.textContent =
-            mozL10n.get('page_scale_percent', {scale: customScale},
-                        '{{scale}}%');
-          items.customScaleOption.selected = true;
-        }
-      }
+  _updateUIState(resetNumPages = false) {
+    if (!this._wasLocalized) {
+      // Don't update the UI state until we localize the toolbar.
+      return;
+    }
+    const { pageNumber, pagesCount, pageScaleValue, pageScale, items, } = this;
 
-      if (!this._wasLocalized) {
-        // Don't update UI state until we will localize the toolbar.
-        return;
-      }
-
-      var pageNumber = this.pageNumber;
-      var scaleValue = (this.pageScaleValue || this.pageScale).toString();
-      var scale = this.pageScale;
-
-      var items = this.items;
-      var pagesCount = this.pagesCount;
-
-      if (resetNumPages) {
-        if (this.hasPageLabels) {
-          items.pageNumber.type = 'text';
-        } else {
-          items.pageNumber.type = 'number';
-          items.numPages.textContent = mozL10n.get('of_pages',
-            { pagesCount: pagesCount }, 'of {{pagesCount}}');
-        }
-        items.pageNumber.max = pagesCount;
-      }
-
+    if (resetNumPages) {
       if (this.hasPageLabels) {
-        items.pageNumber.value = this.pageLabel;
-        items.numPages.textContent = mozL10n.get('page_of_pages',
-          { pageNumber: pageNumber, pagesCount: pagesCount },
-          '({{pageNumber}} of {{pagesCount}})');
+        items.pageNumber.type = 'text';
       } else {
-        items.pageNumber.value = pageNumber;
+        items.pageNumber.type = 'number';
+        this.l10n.get('of_pages', { pagesCount, }, 'of {{pagesCount}}').
+            then((msg) => {
+          items.numPages.textContent = msg;
+        });
       }
+      items.pageNumber.max = pagesCount;
+    }
 
-      items.previous.disabled = (pageNumber <= 1);
-      items.next.disabled = (pageNumber >= pagesCount);
-
-      items.zoomOut.disabled = (scale <= MIN_SCALE);
-      items.zoomIn.disabled = (scale >= MAX_SCALE);
-
-      selectScaleOption(scaleValue, scale);
-    },
-
-    updateLoadingIndicatorState:
-        function Toolbar_updateLoadingIndicatorState(loading) {
-      var pageNumberInput = this.items.pageNumber;
-
-      if (loading) {
-        pageNumberInput.classList.add(PAGE_NUMBER_LOADING_INDICATOR);
-      } else {
-        pageNumberInput.classList.remove(PAGE_NUMBER_LOADING_INDICATOR);
-      }
-    },
-
-    _adjustScaleWidth: function Toolbar_adjustScaleWidth() {
-      var container = this.items.scaleSelectContainer;
-      var select = this.items.scaleSelect;
-      animationStarted.then(function() {
-        // Adjust the width of the zoom box to fit the content.
-        // Note: If the window is narrow enough that the zoom box is not
-        //       visible, we temporarily show it to be able to adjust its width.
-        if (container.clientWidth === 0) {
-          container.setAttribute('style', 'display: inherit;');
-        }
-        if (container.clientWidth > 0) {
-          select.setAttribute('style', 'min-width: inherit;');
-          var width = select.clientWidth + SCALE_SELECT_CONTAINER_PADDING;
-          select.setAttribute('style', 'min-width: ' +
-                                      (width + SCALE_SELECT_PADDING) + 'px;');
-          container.setAttribute('style', 'min-width: ' + width + 'px; ' +
-                                          'max-width: ' + width + 'px;');
-        }
+    if (this.hasPageLabels) {
+      items.pageNumber.value = this.pageLabel;
+      this.l10n.get('page_of_pages', { pageNumber, pagesCount, },
+                    '({{pageNumber}} of {{pagesCount}})').then((msg) => {
+        items.numPages.textContent = msg;
       });
-    },
-  };
+    } else {
+      items.pageNumber.value = pageNumber;
+    }
 
-  return Toolbar;
-})();
+    items.previous.disabled = (pageNumber <= 1);
+    items.next.disabled = (pageNumber >= pagesCount);
 
-exports.Toolbar = Toolbar;
-}));
+    items.zoomOut.disabled = (pageScale <= MIN_SCALE);
+    items.zoomIn.disabled = (pageScale >= MAX_SCALE);
+
+    let customScale = Math.round(pageScale * 10000) / 100;
+    this.l10n.get('page_scale_percent', { scale: customScale, },
+                  '{{scale}}%').then((msg) => {
+      let predefinedValueFound = false;
+      for (const option of items.scaleSelect.options) {
+        if (option.value !== pageScaleValue) {
+          option.selected = false;
+          continue;
+        }
+        option.selected = true;
+        predefinedValueFound = true;
+      }
+      if (!predefinedValueFound) {
+        items.customScaleOption.textContent = msg;
+        items.customScaleOption.selected = true;
+      }
+    });
+  }
+
+  updateLoadingIndicatorState(loading = false) {
+    let pageNumberInput = this.items.pageNumber;
+
+    pageNumberInput.classList.toggle(PAGE_NUMBER_LOADING_INDICATOR, loading);
+  }
+
+  _adjustScaleWidth() {
+    let container = this.items.scaleSelectContainer;
+    let select = this.items.scaleSelect;
+
+    animationStarted.then(function() {
+      // Adjust the width of the zoom box to fit the content.
+      // Note: If the window is narrow enough that the zoom box is not
+      //       visible, we temporarily show it to be able to adjust its width.
+      if (container.clientWidth === 0) {
+        container.setAttribute('style', 'display: inherit;');
+      }
+      if (container.clientWidth > 0) {
+        select.setAttribute('style', 'min-width: inherit;');
+        let width = select.clientWidth + SCALE_SELECT_CONTAINER_PADDING;
+        select.setAttribute('style', 'min-width: ' +
+                                     (width + SCALE_SELECT_PADDING) + 'px;');
+        container.setAttribute('style', 'min-width: ' + width + 'px; ' +
+                                        'max-width: ' + width + 'px;');
+      }
+    });
+  }
+}
+
+export {
+  Toolbar,
+};

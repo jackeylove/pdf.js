@@ -1,8 +1,15 @@
 {
   "parserOptions": {
-    "ecmaVersion": 6,
+    "ecmaVersion": 8,
     "sourceType": "module",
   },
+
+  "plugins": [
+    "import",
+    "mozilla",
+    "no-unsanitized",
+    "unicorn",
+  ],
 
   "env": {
     "browser": true,
@@ -11,14 +18,24 @@
     "amd": true,
   },
 
-  globals: {
+  "globals": {
     "PDFJSDev": false,
     "exports": false,
     "SystemJS": false,
   },
 
   "rules": {
+    // Plugins
+    "import/no-unresolved": "error",
+    "mozilla/avoid-removeChild": "error",
+    "mozilla/use-includes-instead-of-indexOf": "error",
+    "no-unsanitized/method": "error",
+    "no-unsanitized/property": "error",
+    "unicorn/no-array-instanceof": "error",
+
     // Possible errors
+    "for-direction": "error",
+    "no-async-promise-executor": "error",
     "no-cond-assign": ["error", "except-parens"],
     "no-constant-condition": ["error", { "checkLoops": false, }],
     "no-dupe-args": "error",
@@ -43,7 +60,11 @@
     "valid-typeof": ["error", { "requireStringLiterals": true, }],
 
     // Best Practices
-    "accessor-pairs": ["error", { "setWithoutGet": true, }],
+    "accessor-pairs": ["error", {
+      "setWithoutGet": true,
+      "enforceForClassMembers": true,
+    }],
+    "consistent-return": "error",
     "curly": ["error", "all"],
     "eqeqeq": ["error", "always"],
     "no-caller": "error",
@@ -59,7 +80,9 @@
     "no-implied-eval": "error",
     "no-iterator": "error",
     "no-lone-blocks": "error",
-    "no-multi-spaces": "error",
+    "no-multi-spaces": ["error", {
+      "ignoreEOLComments": true,
+    }],
     "no-multi-str": "error",
     "no-new-func": "error",
     "no-new-wrappers": "error",
@@ -67,13 +90,16 @@
     "no-octal-escape": "error",
     "no-octal": "error",
     "no-redeclare": "error",
+    "no-return-await": "error",
     "no-self-assign": "error",
     "no-self-compare": "error",
     "no-throw-literal": "error",
     "no-unused-expressions": "error",
     "no-unused-labels": "error",
     "no-useless-call": "error",
+    "no-useless-catch": "error",
     "no-useless-concat": "error",
+    "no-useless-return": "error",
     "prefer-promise-reject-errors": "error",
     "wrap-iife": ["error", "any"],
     "yoda": ["error", "never", {
@@ -87,6 +113,12 @@
     "no-catch-shadow": "error",
     "no-delete-var": "error",
     "no-label-var": "error",
+    "no-restricted-globals": ["error",
+      {
+        "name": "ReadableStream",
+        "message": "Import it from `src/shared/util.js` or `pdfjsLib` instead; outside of the `/src` and `/web` folders, the rule may be disabled as needed. ",
+      },
+    ],
     "no-shadow-restricted-names": "error",
     "no-shadow": "off",
     "no-undef-init": "error",
@@ -102,6 +134,13 @@
     "brace-style": ["error", "1tbs", {
       "allowSingleLine": false,
     }],
+    "comma-dangle": ["error", {
+      "arrays": "ignore",
+      "objects": "always",
+      "imports": "never",
+      "exports": "always",
+      "functions": "never",
+    }],
     "comma-spacing": ["error", { "before": false, "after": true, }],
     "comma-style": ["error", "last"],
     "eol-last": "error",
@@ -109,15 +148,20 @@
     "key-spacing": ["error", { "beforeColon": false, "afterColon": true, "mode": "strict", }],
     "keyword-spacing": ["error", { "before": true, "after": true, }],
     "linebreak-style": ["error", "unix"],
-    "max-len": ["error", 80],
+    "lines-between-class-members": ["error", "always"],
+    "max-len": ["error", {
+      "code": 80,
+      "ignoreUrls": true
+    }],
     "new-cap": ["error", { "newIsCap": true, "capIsNew": false, }],
     "new-parens": "error",
     "no-array-constructor": "error",
-    "no-multiple-empty-lines": ["error", { "max": 2, "maxEOF": 0, "maxBOF": 1, }],
+    "no-multiple-empty-lines": ["error", { "max": 1, "maxEOF": 0, "maxBOF": 1, }],
     "no-new-object": "error",
     "no-tabs": "error",
     "no-trailing-spaces": ["error", { "skipBlankLines": false, }],
     "no-whitespace-before-property": "error",
+    "object-curly-spacing": ["error", "always"],
     "operator-linebreak": ["error", "after", { "overrides": { ":": "ignore", } }],
     "quotes": ["error", "single"],
     "semi-spacing": ["error", { "before": false, "after": true, }],
@@ -128,17 +172,13 @@
     "space-infix-ops": ["error", { "int32Hint": false }],
     "space-unary-ops": ["error", { "words": true, "nonwords": false, }],
     "spaced-comment": ["error", "always", {
-      "line": {
-        "exceptions": ["//", "#else", "#endif"],
-        "markers": ["#if", "#elif", "#include", "#expand", "#error"],
-      },
       "block": {
         "balanced": true,
       }
     }],
 
     // ECMAScript 6
-    "arrow-body-style": ["error", "as-needed"],
+    "arrow-body-style": ["error", "always"],
     "arrow-parens": ["error", "always"],
     "arrow-spacing": ["error", {
       "before": true,
@@ -154,9 +194,11 @@
     "no-useless-computed-key": "error",
     "no-useless-constructor": "error",
     "no-useless-rename": "error",
-    "object-shorthand": ["off", "always", {
+    "no-var": "off",
+    "object-shorthand": ["error", "always", {
       "avoidQuotes": true,
     }],
+    "prefer-const": "off",
     "rest-spread-spacing": ["error", "never"],
     "sort-imports": ["error", {
       "ignoreCase": true,
